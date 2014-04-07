@@ -1,0 +1,86 @@
+package com.bakersinn;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+public class CompareJsonObjects {
+	public static boolean jsonsEqual(Object obj1, Object obj2)
+    {
+		try
+		{
+			if (!obj1.getClass().equals(obj2.getClass()))
+			{
+				return false;
+			}
+
+			if (obj1 instanceof JSONObject)
+			{
+				JSONObject jsonObj1 = (JSONObject) obj1;
+
+				JSONObject jsonObj2 = (JSONObject) obj2;
+
+				String[] names = JSONObject.getNames(jsonObj1);
+				String[] names2 = JSONObject.getNames(jsonObj2);
+				if (names.length != names2.length)
+				{
+					return false;
+				}
+
+				for (String fieldName:names)
+				{
+					Object obj1FieldValue = jsonObj1.get(fieldName);
+					if(jsonObj2.has(fieldName))
+					{
+						Object obj2FieldValue = jsonObj2.get(fieldName);
+
+						if (!jsonsEqual(obj1FieldValue, obj2FieldValue))
+						{
+							return false;
+						}
+					}else
+						return false;
+				}
+			}
+			else if (obj1 instanceof JSONArray)
+			{
+				JSONArray obj1Array = (JSONArray) obj1;
+				JSONArray obj2Array = (JSONArray) obj2;
+
+				if (obj1Array.length() != obj2Array.length())
+				{
+					return false;
+				}
+
+				for (int i = 0; i < obj1Array.length(); i++)
+				{
+					boolean matchFound = false;
+
+					for (int j = 0; j < obj2Array.length(); j++)
+					{
+						if (jsonsEqual(obj1Array.get(i), obj2Array.get(j)))
+						{
+							matchFound = true;
+							break;
+						}
+					}
+
+					if (!matchFound)
+					{
+						return false;
+					}
+				}
+			}
+			else
+			{
+				if (!obj1.equals(obj2))
+				{
+					return false;
+				}
+			}
+		}catch (Exception e) {
+			//System.out.println("compare json"+e.toString());
+			return false;
+		}
+        return true;
+    }
+}
