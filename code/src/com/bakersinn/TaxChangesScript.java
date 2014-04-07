@@ -33,293 +33,298 @@ public class TaxChangesScript {
 			{
 				FileWriter filewriter=null;
 				BufferedWriter bufwriter=null;
-					filewriter=new FileWriter("/home/prabhu/Desktop/database/productin move changes/productlog.txt",true);
-					bufwriter=new BufferedWriter(filewriter);
-					con.setAutoCommit(false);
-					String sql="SELECT o.Quantity,o.PriceTypeId,o.rest_id,o.Amount,o.Discount,o.BasePrices,o.`OrderId`,`TaxAmts`, t.`TaxId`, `Type`, `VAT`, `vat_type`, `ServiceTax`, `st_type`, `ServiceCharge`, `sc_type`, `packaging_charges`, `delivary_charge`, `ServiceTaxonDelivery`, `driver_commision`, t.`Discount`, `Discount_Type`, `AdditionalCharges`, `TaxOnAdditionalCharges`, `IncludeTaxFlag`,  `DelivaryChargesWithTax`, `DelivaryChargesOnDiscount`, `EnableDelivaryCharge`,`IpAddress` FROM `Orders` as o join TaxConfiguration as t on o.`TaxId`=t.TaxId";
-					System.out.println(sql);
-					bufwriter.write(sql);
+				filewriter=new FileWriter("/home/prabhu/Desktop/database/productin move changes/productlog.txt",true);
+				bufwriter=new BufferedWriter(filewriter);
+				con.setAutoCommit(false);
+				String sql="SELECT o.Quantity,o.PriceTypeId,o.rest_id,o.Amount,o.Discount,o.BasePrices,o.`OrderId`,`TaxAmts`, t.`TaxId`, `Type`, `VAT`, `vat_type`, `ServiceTax`, `st_type`, `ServiceCharge`, `sc_type`, `packaging_charges`, `delivary_charge`, `ServiceTaxonDelivery`, `driver_commision`, t.`Discount`, `Discount_Type`, `AdditionalCharges`, `TaxOnAdditionalCharges`, `IncludeTaxFlag`,  `DelivaryChargesWithTax`, `DelivaryChargesOnDiscount`, `EnableDelivaryCharge`,`IpAddress` FROM `Orders` as o join TaxConfiguration as t on o.`TaxId`=t.TaxId where o.TaxAmts<>'{}'";
+				bufwriter.write(sql);
+				bufwriter.newLine();
+				st=con.createStatement();
+				ResultSet rs=st.executeQuery(sql);
+				JSONObject tempjson;
+				JSONArray jsonarray = null;
+				ps=con.prepareStatement("UPDATE `Orders` SET TaxAmts=?,`TaxId`=?,PaymentType=? WHERE `OrderId`=?");
+				while(rs.next())
+				{
+					bufwriter.write("orderid="+rs.getString("OrderId")+" baseprice="+rs.getString("BasePrices"));
 					bufwriter.newLine();
-					st=con.createStatement();
-					ResultSet rs=st.executeQuery(sql);
-					JSONObject tempjson;
-					JSONArray jsonarray = null;
-					ps=con.prepareStatement("UPDATE `Orders` SET TaxAmts=?,`TaxId`=?,PaymentType=? WHERE `OrderId`=?");
-					while(rs.next())
+					String[] amts=rs.getString("TaxAmts").split("\\_\\$\\_");
+					String[] calculatedamts;
+					boolean taxonlyinclude=false;
+					boolean chargeonlyinclude=false;
+					double amt=0;
+					if(!rs.getString("BasePrices").equalsIgnoreCase("0"))
 					{
-						bufwriter.write("orderid="+rs.getString("OrderId")+" baseprice="+rs.getString("BasePrices"));
+						bufwriter.write("if=========");
 						bufwriter.newLine();
-						String[] amts=rs.getString("TaxAmts").split("\\_\\$\\_");
-						String[] calculatedamts;
-						boolean taxonlyinclude=false;
-						boolean chargeonlyinclude=false;
-						double amt=0;
-						if(!rs.getString("BasePrices").equalsIgnoreCase("0"))
+						String qtys[]=rs.getString("Quantity").split("\\_\\$\\_");
+						String baseamts[]=rs.getString("BasePrices").split("\\_\\$\\_");
+						for(int p=0;p<baseamts.length;p++)
 						{
-							bufwriter.write("if=========");
-							bufwriter.newLine();
-							String qtys[]=rs.getString("Quantity").split("\\_\\$\\_");
-							String baseamts[]=rs.getString("BasePrices").split("\\_\\$\\_");
-							for(int p=0;p<baseamts.length;p++)
-							{
-								amt+=Double.parseDouble(baseamts[p])*Double.parseDouble(qtys[p]);
-							}
-							String taxes=new OldTaxConfigurations().getTaxconfigurations(rs.getString("TaxId"), amt+"", "include");
+							amt+=Double.parseDouble(baseamts[p])*Double.parseDouble(qtys[p]);
+						}
+						String taxes=new OldTaxConfigurations().getTaxconfigurations(rs.getString("TaxId"), amt+"", "include");
 
-							if(rs.getString("IncludeTaxFlag").equalsIgnoreCase("1-0"))
-								taxonlyinclude=true;
-							else if(rs.getString("IncludeTaxFlag").equalsIgnoreCase("0-1"))
-								chargeonlyinclude=true;
-							else if(rs.getString("IncludeTaxFlag").equalsIgnoreCase("1-1"))
-							{
-								taxonlyinclude=true;
-								chargeonlyinclude=true;
-							}
-							bufwriter.write("taxes==="+taxes);
-							bufwriter.newLine();
-							calculatedamts=taxes.split("\\$");
-							for(int p=0;p<calculatedamts.length;p++)
-							{
-								if(taxonlyinclude)
-								{
-									if(p==0||p==1||p==2)
-										amts[p]=calculatedamts[p];
-								}
-								if(chargeonlyinclude)
-								{
-									if(p==6)
-										amts[p]=calculatedamts[p];
-								}
-							}
-						}else
+						if(rs.getString("IncludeTaxFlag").equalsIgnoreCase("1-0"))
+							taxonlyinclude=true;
+						else if(rs.getString("IncludeTaxFlag").equalsIgnoreCase("0-1"))
+							chargeonlyinclude=true;
+						else if(rs.getString("IncludeTaxFlag").equalsIgnoreCase("1-1")||rs.getString("IncludeTaxFlag").equalsIgnoreCase("1"))
 						{
-							bufwriter.write("else=======");
-							bufwriter.newLine();
-							String baseamts[]=rs.getString("Amount").split("\\_\\$\\_");
-							for(int p=0;p<baseamts.length;p++)
+							taxonlyinclude=true;
+							chargeonlyinclude=true;
+						}
+						bufwriter.write("taxes==="+taxes);
+						bufwriter.newLine();
+						calculatedamts=taxes.split("\\$");
+						for(int p=0;p<calculatedamts.length;p++)
+						{
+							if(taxonlyinclude)
 							{
-								amt+=Double.parseDouble(baseamts[p]);
+								if(p==0||p==1||p==2)
+									amts[p]=calculatedamts[p];
+							}
+							if(chargeonlyinclude)
+							{
+								if(p==6)
+									amts[p]=calculatedamts[p];
 							}
 						}
-						bufwriter.write("tax"+taxonlyinclude+"  Charges"+chargeonlyinclude);
-						bufwriter.newLine();
-						JSONObject temp1=new JSONObject();
-						jsonarray=new JSONArray();
-						for(int p=0;p<amts.length;p++)
-						{
-							bufwriter.write("amts["+p+"] ="+amts[p]);
-							bufwriter.newLine();
-							if(Double.parseDouble(amts[p])>0)
-							{
-								if(p==0)
-								{
-									JSONObject temp2=new JSONObject();
-									JSONObject temp3=new JSONObject();
-									temp2.put(rs.getString("VAT")+"%", amts[p]);
-									temp3.put("taxamt", temp2);
-									if(taxonlyinclude)
-										temp3.put("include", "1");
-									else
-										temp3.put("include", "0");
-									amt+=Double.parseDouble(amts[p]);
-									temp1.put("1", temp3);
-								}else if(p==1)
-								{
-									JSONObject temp2=new JSONObject();
-									JSONObject temp3=new JSONObject();
-									temp2.put(rs.getString("ServiceTax")+"%", amts[p]);
-									temp3.put("taxamt", temp2);
-									if(taxonlyinclude)
-										temp3.put("include", "1");
-									else
-										temp3.put("include", "0");
-									amt+=Double.parseDouble(amts[p]);
-									temp1.put("2", temp3);
-								}else if(p==2)
-								{
-									JSONObject temp2=new JSONObject();
-									JSONObject temp3=new JSONObject();
-									temp2.put(rs.getString("ServiceCharge")+"%", amts[p]);
-									temp3.put("taxamt", temp2);
-									if(taxonlyinclude)
-										temp3.put("include", "1");
-									else
-										temp3.put("include", "0");
-									amt+=Double.parseDouble(amts[p]);
-									temp1.put("3", temp3);
-								}else if(p==3)
-								{
-									JSONObject temp2=new JSONObject();
-									JSONObject temp3=new JSONObject();
-									temp2.put(rs.getString("packaging_charges")+"%", amts[p]);
-									temp3.put("taxamt", temp2);
-									temp3.put("include", "0");
-									amt+=Double.parseDouble(amts[p]);
-									temp1.put("4", temp3);
-								}else if(p==4)
-								{
-									JSONObject temp2=new JSONObject();
-									JSONObject temp3=new JSONObject();
-									temp2.put(rs.getString("delivary_charge")+"%", amts[p]);
-									temp3.put("taxamt", temp2);
-									temp3.put("include", "0");
-									amt+=Double.parseDouble(amts[p]);
-									temp1.put("5", temp3);
-								}else if(p==5)
-								{
-									JSONObject temp2=new JSONObject();
-									JSONObject temp3=new JSONObject();
-									temp2.put(rs.getString("ServiceTaxonDelivery")+"%", amts[p]);
-									temp3.put("taxamt", temp2);
-									temp3.put("include", "0");
-									amt+=Double.parseDouble(amts[p]);
-									temp1.put("6", temp3);
-								}else if(p==6)
-								{
-									JSONObject temp2=new JSONObject();
-									JSONObject temp3=new JSONObject();
-									temp2.put(rs.getString("AdditionalCharges")+"%", amts[p]);
-									temp3.put("taxamt", temp2);
-									if(chargeonlyinclude)
-										temp3.put("include", "1");
-									else
-										temp3.put("include", "0");
-									amt+=Double.parseDouble(amts[p]);
-									temp1.put("7", temp3);
-								}
-							}
-						}
-						bufwriter.write("final tax="+temp1);
-						bufwriter.newLine();
-						tempjson=new JSONObject();
-						tempjson.put("paymentid", "1");
-						tempjson.put("amount", formatter.format(amt));
-						tempjson.put("desc", "");
-						jsonarray.put(tempjson);
-						ps.setString(1, temp1.toString());
-						ps.setString(2, "0");
-						ps.setString(3, jsonarray.toString());
-						ps.setString(4, rs.getString("OrderId"));
-						bufwriter.write(ps.toString());
-						bufwriter.newLine();
-						ps.addBatch();
-					}
-					sql="SELECT `OrderId`,`Amount`, `Discount`, `TaxAmts`,`DeliveryCharge`, `PriceTypeId`,`BasePrices` FROM `Orders` WHERE `TaxId`='0' and `TaxAmts` like '%_$_%'";
-					st=con.createStatement();
-					rs=st.executeQuery(sql);
-					while(rs.next())
+					}else
 					{
-						bufwriter.write("orderid="+rs.getString("OrderId")+" baseprice="+rs.getString("BasePrices"));
+						bufwriter.write("else=======");
 						bufwriter.newLine();
-						String[] amts=rs.getString("TaxAmts").split("\\_\\$\\_");
-						boolean include=false;
-						double amt=0;
-
 						String baseamts[]=rs.getString("Amount").split("\\_\\$\\_");
 						for(int p=0;p<baseamts.length;p++)
 						{
 							amt+=Double.parseDouble(baseamts[p]);
 						}
-						JSONObject temp1=new JSONObject();
-						jsonarray=new JSONArray();
-						for(int p=0;p<amts.length;p++)
+					}
+					bufwriter.write("tax"+taxonlyinclude+"  Charges"+chargeonlyinclude);
+					bufwriter.newLine();
+					JSONObject temp1=new JSONObject();
+					jsonarray=new JSONArray();
+					for(int p=0;p<amts.length;p++)
+					{
+						bufwriter.write("amts["+p+"] ="+amts[p]);
+						bufwriter.newLine();
+						if(Double.parseDouble(amts[p])>0)
 						{
-							if(Double.parseDouble(amts[p])>0)
+							if(p==0)
 							{
-								if(p==0)
-								{
-									JSONObject temp2=new JSONObject();
-									JSONObject temp3=new JSONObject();
-									temp2.put("0%", amts[p]);
-									temp3.put("taxamt", temp2);
-									if(include)
-										temp3.put("include", "1");
-									else
-										temp3.put("include", "0");
-									amt+=Double.parseDouble(amts[p]);
-									temp1.put("1", temp3);
-								}else if(p==1)
-								{
-									JSONObject temp2=new JSONObject();
-									JSONObject temp3=new JSONObject();
-									temp2.put("0%", amts[p]);
-									temp3.put("taxamt", temp2);
-									if(include)
-										temp3.put("include", "1");
-									else
-										temp3.put("include", "0");
-									amt+=Double.parseDouble(amts[p]);
-									temp1.put("2", temp3);
-								}else if(p==2)
-								{
-									JSONObject temp2=new JSONObject();
-									JSONObject temp3=new JSONObject();
-									temp2.put("0%", amts[p]);
-									temp3.put("taxamt", temp2);
-									if(include)
-										temp3.put("include", "1");
-									else
-										temp3.put("include", "0");
-									amt+=Double.parseDouble(amts[p]);
-									temp1.put("3", temp3);
-								}else if(p==3)
-								{
-									JSONObject temp2=new JSONObject();
-									JSONObject temp3=new JSONObject();
-									temp2.put("0%", amts[p]);
-									temp3.put("taxamt", temp2);
+								JSONObject temp2=new JSONObject();
+								JSONObject temp3=new JSONObject();
+								temp2.put(rs.getString("VAT")+"%", amts[p]);
+								temp3.put("taxamt", temp2);
+								if(taxonlyinclude)
+									temp3.put("include", "1");
+								else
 									temp3.put("include", "0");
-									amt+=Double.parseDouble(amts[p]);
-									temp1.put("4", temp3);
-								}else if(p==4)
-								{
-									JSONObject temp2=new JSONObject();
-									JSONObject temp3=new JSONObject();
-									temp2.put(rs.getString("DeliveryCharge")+"%", amts[p]);
-									temp3.put("taxamt", temp2);
+								amt+=Double.parseDouble(amts[p]);
+								temp1.put("1", temp3);
+							}else if(p==1)
+							{
+								JSONObject temp2=new JSONObject();
+								JSONObject temp3=new JSONObject();
+								temp2.put(rs.getString("ServiceTax")+"%", amts[p]);
+								temp3.put("taxamt", temp2);
+								if(taxonlyinclude)
+									temp3.put("include", "1");
+								else
 									temp3.put("include", "0");
-									amt+=Double.parseDouble(amts[p]);
-									temp1.put("5", temp3);
-								}else if(p==5)
-								{
-									JSONObject temp2=new JSONObject();
-									JSONObject temp3=new JSONObject();
-									temp2.put("0%", amts[p]);
-									temp3.put("taxamt", temp2);
+								amt+=Double.parseDouble(amts[p]);
+								temp1.put("2", temp3);
+							}else if(p==2)
+							{
+								JSONObject temp2=new JSONObject();
+								JSONObject temp3=new JSONObject();
+								temp2.put(rs.getString("ServiceCharge")+"%", amts[p]);
+								temp3.put("taxamt", temp2);
+								if(taxonlyinclude)
+									temp3.put("include", "1");
+								else
 									temp3.put("include", "0");
-									amt+=Double.parseDouble(amts[p]);
-									temp1.put("6", temp3);
-								}else if(p==6)
-								{
-									JSONObject temp2=new JSONObject();
-									JSONObject temp3=new JSONObject();
-									temp2.put("0%", amts[p]);
-									temp3.put("taxamt", temp2);
-									if(include)
-										temp3.put("include", "1");
-									else
-										temp3.put("include", "0");
-									amt+=Double.parseDouble(amts[p]);
-									temp1.put("7", temp3);
-								}
+								amt+=Double.parseDouble(amts[p]);
+								temp1.put("3", temp3);
+							}else if(p==3)
+							{
+								JSONObject temp2=new JSONObject();
+								JSONObject temp3=new JSONObject();
+								temp2.put(rs.getString("packaging_charges")+"%", amts[p]);
+								temp3.put("taxamt", temp2);
+								temp3.put("include", "0");
+								amt+=Double.parseDouble(amts[p]);
+								temp1.put("4", temp3);
+							}else if(p==4)
+							{
+								JSONObject temp2=new JSONObject();
+								JSONObject temp3=new JSONObject();
+								temp2.put(rs.getString("delivary_charge")+"%", amts[p]);
+								temp3.put("taxamt", temp2);
+								temp3.put("include", "0");
+								amt+=Double.parseDouble(amts[p]);
+								temp1.put("5", temp3);
+							}else if(p==5)
+							{
+								JSONObject temp2=new JSONObject();
+								JSONObject temp3=new JSONObject();
+								temp2.put(rs.getString("ServiceTaxonDelivery")+"%", amts[p]);
+								temp3.put("taxamt", temp2);
+								temp3.put("include", "0");
+								amt+=Double.parseDouble(amts[p]);
+								temp1.put("6", temp3);
+							}else if(p==6)
+							{
+								JSONObject temp2=new JSONObject();
+								JSONObject temp3=new JSONObject();
+								temp2.put(rs.getString("AdditionalCharges")+"%", amts[p]);
+								temp3.put("taxamt", temp2);
+								if(chargeonlyinclude)
+									temp3.put("include", "1");
+								else
+									temp3.put("include", "0");
+								amt+=Double.parseDouble(amts[p]);
+								temp1.put("7", temp3);
 							}
 						}
-						tempjson=new JSONObject();
-						tempjson.put("paymentid", "1");
-						tempjson.put("amount", formatter.format(amt));
-						tempjson.put("desc", "");
-						jsonarray.put(tempjson);
-						ps.setString(1, temp1.toString());
-						ps.setString(2, "0");
-						ps.setString(3, jsonarray.toString());
-						ps.setString(4, rs.getString("OrderId"));
-						bufwriter.write(ps.toString());
-						bufwriter.newLine();
-						ps.addBatch();
 					}
-					int[] res=ps.executeBatch();
-					con.commit();
-					bufwriter.close();
+					amt-=Double.parseDouble(rs.getString("Discount"));
+					bufwriter.write("final tax="+temp1);
+					bufwriter.newLine();
+					tempjson=new JSONObject();
+					tempjson.put("paymentid", "1");
+					tempjson.put("amount", formatter.format(amt));
+					tempjson.put("desc", "");
+					jsonarray.put(tempjson);
+					ps.setString(1, temp1.toString());
+					ps.setString(2, "0");
+					ps.setString(3, jsonarray.toString());
+					ps.setString(4, rs.getString("OrderId"));
+					bufwriter.write(ps.toString());
+					bufwriter.newLine();
+					ps.addBatch();
+				}
+				System.out.println("first half completed");
+				sql="SELECT `OrderId`,`Amount`, `Discount`, `TaxAmts`,`DeliveryCharge`, `PriceTypeId`,`BasePrices` FROM `Orders` WHERE `TaxId`='0' and `TaxAmts` like '%_$_%'";
+				bufwriter.write(sql);
+				bufwriter.newLine();
+				st=con.createStatement();
+				rs=st.executeQuery(sql);
+				while(rs.next())
+				{
+					bufwriter.write("orderid="+rs.getString("OrderId")+" baseprice="+rs.getString("BasePrices"));
+					bufwriter.newLine();
+					String[] amts=rs.getString("TaxAmts").split("\\_\\$\\_");
+					boolean include=false;
+					double amt=0;
+
+					String baseamts[]=rs.getString("Amount").split("\\_\\$\\_");
+					for(int p=0;p<baseamts.length;p++)
+					{
+						amt+=Double.parseDouble(baseamts[p]);
+					}
+					JSONObject temp1=new JSONObject();
+					jsonarray=new JSONArray();
+					for(int p=0;p<amts.length;p++)
+					{
+						if(Double.parseDouble(amts[p])>0)
+						{
+							if(p==0)
+							{
+								JSONObject temp2=new JSONObject();
+								JSONObject temp3=new JSONObject();
+								temp2.put("0%", amts[p]);
+								temp3.put("taxamt", temp2);
+								if(include)
+									temp3.put("include", "1");
+								else
+									temp3.put("include", "0");
+								amt+=Double.parseDouble(amts[p]);
+								temp1.put("1", temp3);
+							}else if(p==1)
+							{
+								JSONObject temp2=new JSONObject();
+								JSONObject temp3=new JSONObject();
+								temp2.put("0%", amts[p]);
+								temp3.put("taxamt", temp2);
+								if(include)
+									temp3.put("include", "1");
+								else
+									temp3.put("include", "0");
+								amt+=Double.parseDouble(amts[p]);
+								temp1.put("2", temp3);
+							}else if(p==2)
+							{
+								JSONObject temp2=new JSONObject();
+								JSONObject temp3=new JSONObject();
+								temp2.put("0%", amts[p]);
+								temp3.put("taxamt", temp2);
+								if(include)
+									temp3.put("include", "1");
+								else
+									temp3.put("include", "0");
+								amt+=Double.parseDouble(amts[p]);
+								temp1.put("3", temp3);
+							}else if(p==3)
+							{
+								JSONObject temp2=new JSONObject();
+								JSONObject temp3=new JSONObject();
+								temp2.put("0%", amts[p]);
+								temp3.put("taxamt", temp2);
+								temp3.put("include", "0");
+								amt+=Double.parseDouble(amts[p]);
+								temp1.put("4", temp3);
+							}else if(p==4)
+							{
+								JSONObject temp2=new JSONObject();
+								JSONObject temp3=new JSONObject();
+								temp2.put(rs.getString("DeliveryCharge")+"%", amts[p]);
+								temp3.put("taxamt", temp2);
+								temp3.put("include", "0");
+								amt+=Double.parseDouble(amts[p]);
+								temp1.put("5", temp3);
+							}else if(p==5)
+							{
+								JSONObject temp2=new JSONObject();
+								JSONObject temp3=new JSONObject();
+								temp2.put("0%", amts[p]);
+								temp3.put("taxamt", temp2);
+								temp3.put("include", "0");
+								amt+=Double.parseDouble(amts[p]);
+								temp1.put("6", temp3);
+							}else if(p==6)
+							{
+								JSONObject temp2=new JSONObject();
+								JSONObject temp3=new JSONObject();
+								temp2.put("0%", amts[p]);
+								temp3.put("taxamt", temp2);
+								if(include)
+									temp3.put("include", "1");
+								else
+									temp3.put("include", "0");
+								amt+=Double.parseDouble(amts[p]);
+								temp1.put("7", temp3);
+							}
+						}
+					}
+					amt-=Double.parseDouble(rs.getString("Discount"));
+					tempjson=new JSONObject();
+					tempjson.put("paymentid", "1");
+					tempjson.put("amount", formatter.format(amt));
+					tempjson.put("desc", "");
+					jsonarray.put(tempjson);
+					ps.setString(1, temp1.toString());
+					ps.setString(2, "0");
+					ps.setString(3, jsonarray.toString());
+					ps.setString(4, rs.getString("OrderId"));
+					bufwriter.write(ps.toString());
+					bufwriter.newLine();
+					ps.addBatch();
+				}
+				ps.executeBatch();
+				con.commit();
+				bufwriter.close();
+				System.out.println("successfully completed");
 			}else
 			{
 				errorlog="failed to connect the database";
